@@ -597,12 +597,16 @@
         let currentDate = new Date();
         let selectedDate = null;
         let currentPage = 0;
+        let removeMode = false;
         let events = {
             day: {},
             week: {},
             month: {}
         };
-        let removeMode = false;
+
+        function saveEvents() {
+            localStorage.setItem("calendarEvents", JSON.stringify(events));
+        }
 
         function toggleMode() {
             removeMode = !removeMode;
@@ -724,6 +728,7 @@
                         const eventElement = document.createElement('div');
                         eventElement.className = 'event-item';
                         eventElement.textContent = event;
+                        eventElement.onclick = () => document.getElementById("eventInput").value = event;
                         dayEvents.appendChild(eventElement);
                     });
                 }
@@ -736,6 +741,7 @@
                             const eventElement = document.createElement('div');
                             eventElement.className = 'event-item week-event';
                             eventElement.textContent = event;
+                            eventElement.onclick = () => document.getElementById("eventInput").value = event;
                             dayEvents.appendChild(eventElement);
                         });
                     }
@@ -747,6 +753,7 @@
                             const eventElement = document.createElement('div');
                             eventElement.className = 'event-item month-event';
                             eventElement.textContent = event;
+                            eventElement.onclick = () => document.getElementById("eventInput").value = event;
                             dayEvents.appendChild(eventElement);
                         });
                     }
@@ -814,6 +821,7 @@
             }
           
             input.value = "";
+            saveEvents();
             updateCalendar();
             updateWeekView();
             updateMonthView();
@@ -1000,7 +1008,6 @@
                 saveNotes();
             } else {
                 notesPage.style.display = 'block';
-                document.getElementById('notesInput').focus();
             }
         }
 
@@ -1008,16 +1015,16 @@
         function saveNotes() {
             const notesInput = document.getElementById('notesInput');
             const notes = notesInput.value;
-            // In a real app, this would save to a backend or local storage
+            // Saved to local storage
+            localStorage.setItem('notes', JSON.stringify(notes));
+            // Test
             console.log('Notes saved:', notes);
         }
 
         // Load notes
         function loadNotes() {
-            // In a real app, this would load from a backend or local storage
-            const notesInput = document.getElementById('notesInput');
-            // For demo purposes, we'll keep it empty
-            notesInput.value = '';
+            // Load from local storage
+            const notesInput = localStorage.getItem('notes');
         }
 
         // Utility functions
@@ -1035,6 +1042,8 @@
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }
 
+        window.addEventListener("beforeunload", saveEvents);
+        window.addEventListener("beforeunload", saveNotes);
         // Initialize the app
         init();
     </script>
