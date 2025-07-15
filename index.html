@@ -605,7 +605,15 @@
         };
 
         function saveEvents() {
+            // Save to local storage
             localStorage.setItem("calendarEvents", JSON.stringify(events));
+        }
+
+        function loadEvents() {
+            const savedEvents = localStorage.getItem("calendarEvents");
+            if (savedEvents) {
+                events = JSON.parse(savedEvents);
+            }
         }
 
         function toggleMode() {
@@ -616,6 +624,7 @@
 
         // Initialize the calendar
         function init() {
+            loadEvents();
             updateCalendar();
             updateCurrentMonth();
             loadNotes();
@@ -1015,16 +1024,16 @@
         function saveNotes() {
             const notesInput = document.getElementById('notesInput');
             const notes = notesInput.value;
-            // Saved to local storage
-            localStorage.setItem('notes', JSON.stringify(notes));
-            // Test
-            console.log('Notes saved:', notes);
+            localStorage.setItem("notes", JSON.stringify(notes));
         }
 
         // Load notes
         function loadNotes() {
-            // Load from local storage
-            const notesInput = localStorage.getItem('notes');
+            const notesInput = document.getElementById('notesInput');
+            const savedNotes = localStorage.getItem("notes");
+            if (savedNotes) {
+                notesInput.value = JSON.parse(savedNotes);
+            }
         }
 
         // Utility functions
