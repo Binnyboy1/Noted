@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocabulary Flashcard Study Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Papaparse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1f2937;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .progress-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .progress-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .progress-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+        
+        .learning { color: #ef4444; }
+        .reviewing { color: #f59e0b; }
+        .mastered { color: #10b981; }
+        
+        .progress-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .learning .progress-fill { background: #ef4444; }
+        .reviewing .progress-fill { background: #f59e0b; }
+        .mastered .progress-fill { background: #10b981; }
+        
+        .file-upload {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .flashcard-container {
+            perspective: 1000px;
+            margin-bottom: 30px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .flashcard {
+            width: 100%;
+            max-width: 500px;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease;
+            cursor: pointer;
+        }
+        
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        
+        .card-content {
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        
+        .card-definition {
+            font-size: 1.125rem;
+            font-weight: 400;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        
+        .card-mnemonic {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-style: italic;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-incorrect {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-correct {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-flip {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-generate {
+            background: #8b5cf6;
+            color: white;
+        }
+        
+        .btn-help {
+            background: #374151;
+            color: white;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 30px 20px 30px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #1f2937;
+            font-size: 1.5rem;
+        }
+        
+        .modal-close {
+            font-size: 2rem;
+            cursor: pointer;
+            color: #9ca3af;
+            line-height: 1;
+        }
+        
+        .modal-close:hover {
+            color: #ef4444;
+        }
+        
+        .modal-body {
+            padding: 20px 30px 30px 30px;
+        }
+        
+        .setup-step {
+            margin-bottom: 30px;
+        }
+        
+        .setup-step h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.125rem;
+        }
+        
+        .code-block {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            background: #374151;
+            color: white;
+            padding: 10px 15px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .code-block code {
+            display: block;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #374151;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 50px;
+            right: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        
+        .copy-btn:hover {
+            opacity: 1;
+        }
+        
+        .location-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .location-card {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .location-card strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+        
+        .location-card p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .status-message {
+            text-align: center;
+            color: white;
+            font-size: 1.125rem;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .progress-container {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .flashcard {
+                height: 250px;
+            }
+            
+            .card-content {
+                font-size: 1.25rem;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Vocabulary Flashcards</h1>
+            <p>Master your vocabulary with spaced repetition</p>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-card learning">
+                <div class="progress-title">Learning</div>
+                <div class="progress-number" id="learning-count">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="learning-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="progress-card reviewing">
+                <div class="progress-title">Reviewing</div>
+                <div class="progress-number" id="reviewing-count">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="reviewing-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="progress-card mastered">
+                <div class="progress-title">Mastered</div>
+                <div class="progress-number" id="mastered-count">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="mastered-progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="file-upload">
+            <div class="upload-area" id="upload-area">
+                <div>
+                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 15px; color: #9ca3af;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 5px;">Upload CSV File</div>
+                    <div style="color: #6b7280;">Drop your vocabulary CSV file here or click to browse</div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 10px;">Format: word,definition,mnemonic</div>
+                </div>
+                <input type="file" id="csv-file" accept=".csv" style="display: none;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: center;">
+                <button class="btn btn-generate" id="generate-btn" style="background: #8b5cf6; color: white;">
+                    🧠 Generate Mnemonics
+                </button>
+                <button class="btn btn-help" id="help-btn" style="background: #374151; color: white;">
+                    📖 Setup Help
+                </button>
+            </div>
+        </div>
+        
+        <!-- CLI Instructions Modal -->
+        <div id="cli-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🚀 Mnemonic Generation Setup</h2>
+                    <span class="modal-close" id="modal-close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="setup-step">
+                        <h3>📋 Quick Setup Commands</h3>
+                        <div class="code-block">
+                            <div class="code-header">Windows Command Prompt / PowerShell</div>
+                            <code id="setup-commands">
+# Install Python dependencies<br>
+pip install google-generativeai<br><br>
+# Set your API key (get from https://makersuite.google.com/app/apikey)<br>
+set GOOGLE_API_KEY=your-api-key-here<br><br>
+# Run the mnemonic generator<br>
+python generate_mnemonics.py your-vocab-file.csv
+                            </code>
+                            <button class="copy-btn" onclick="copyToClipboard('setup-commands')">📋 Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step">
+                        <h3>🎯 Where to Run This</h3>
+                        <div class="location-options">
+                            <div class="location-card">
+                                <strong>🖥️ Command Prompt</strong>
+                                <p>Press Win+R, type "cmd", press Enter</p>
+                            </div>
+                            <div class="location-card">
+                                <strong>💙 PowerShell</strong>
+                                <p>Right-click Start button → Windows PowerShell</p>
+                            </div>
+                            <div class="location-card">
+                                <strong>🆚 VSCode Terminal</strong>
+                                <p>Open VSCode → Terminal → New Terminal</p>
+                            </div>
+                            <div class="location-card">
+                                <strong>🧠 IntelliJ Terminal</strong>
+                                <p>Open IntelliJ → View → Tool Windows → Terminal</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step">
+                        <h3>📁 File Structure</h3>
+                        <div class="code-block">
+                            <div class="code-header">Create these files in a folder:</div>
+                            <code>
+📁 vocab-study/<br>
+├── 📄 generate_mnemonics.py  (Python script)<br>
+├── 📄 process_vocab.sh       (Optional bash script)<br>
+├── 📄 your-vocab.csv         (Your vocabulary words)<br>
+└── 📄 .env                   (API key - optional)
+                            </code>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step">
+                        <h3>🔄 CSV Format</h3>
+                        <div class="code-block">
+                            <div class="code-header">your-vocab.csv should look like:</div>
+                            <code>
+ubiquitous,present everywhere,<br>
+ephemeral,lasting for a short time,<br>
+perspicacious,having keen insight,<br>
+obstreperous,noisy and difficult to control,
+                            </code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="study-area" class="hidden">
+            <div class="flashcard-container">
+                <div class="flashcard" id="flashcard">
+                    <div class="card-face">
+                        <div class="card-content" id="word-side">Click to flip</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div>
+                            <div class="card-definition" id="definition-side"></div>
+                            <div class="card-mnemonic" id="mnemonic-side"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-flip" id="flip-btn">Flip Card</button>
+                <button class="btn btn-incorrect" id="incorrect-btn">Incorrect</button>
+                <button class="btn btn-correct" id="correct-btn">Correct</button>
+                <button class="btn btn-next" id="next-btn">Next Card</button>
+            </div>
+        </div>
+        
+        <div id="status" class="status-message hidden"></div>
+    </div>
+
+    <script>
+        class VocabularyApp {
+            constructor() {
+                this.words = [];
+                this.currentWordIndex = 0;
+                this.isFlipped = false;
+                this.studyData = {};
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                const uploadArea = document.getElementById('upload-area');
+                const fileInput = document.getElementById('csv-file');
+                const flashcard = document.getElementById('flashcard');
+                
+                // File upload
+                uploadArea.addEventListener('click', () => fileInput.click());
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    if (e.dataTransfer.files.length > 0) {
+                        this.handleFile(e.dataTransfer.files[0]);
+                    }
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFile(e.target.files[0]);
+                    }
+                });
+                
+                // Flashcard controls
+                flashcard.addEventListener('click', () => this.flipCard());
+                document.getElementById('flip-btn').addEventListener('click', () => this.flipCard());
+                document.getElementById('incorrect-btn').addEventListener('click', () => this.markAnswer(false));
+                document.getElementById('correct-btn').addEventListener('click', () => this.markAnswer(true));
+                document.getElementById('next-btn').addEventListener('click', () => this.nextCard());
+                
+                // Modal controls
+                document.getElementById('generate-btn').addEventListener('click', () => this.openCLIInstructions());
+                document.getElementById('help-btn').addEventListener('click', () => this.openCLIInstructions());
+                document.getElementById('modal-close').addEventListener('click', () => this.closeCLIInstructions());
+                
+                // Close modal on outside click
+                document.getElementById('cli-modal').addEventListener('click', (e) => {
+                    if (e.target.id === 'cli-modal') {
+                        this.closeCLIInstructions();
+                    }
+                });
+            }
+            
+            openCLIInstructions() {
+                document.getElementById('cli-modal').classList.remove('hidden');
+            }
+            
+            closeCLIInstructions() {
+                document.getElementById('cli-modal').classList.add('hidden');
+            }
+            
+            handleFile(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const csv = e.target.result;
+                    Papa.parse(csv, {
+                        header: false,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            this.processCSVData(results.data);
+                        }
+                    });
+                };
+                reader.readAsText(file);
+            }
+            
+            processCSVData(data) {
+                this.words = data.map((row, index) => ({
+                    id: index,
+                    word: row[0] || '',
+                    definition: row[1] || '',
+                    mnemonic: row[2] || ''
+                }));
+                
+                // Initialize study data
+                this.words.forEach(word => {
+                    if (!this.studyData[word.id]) {
+                        this.studyData[word.id] = {
+                            correctCount: 0,
+                            incorrectCount: 0,
+                            status: 'learning', // learning, reviewing, mastered
+                            lastStudied: null,
+                            reviewDate: null
+                        };
+                    }
+                });
+                
+                this.showMessage(`Loaded ${this.words.length} vocabulary words!`);
+                this.startStudySession();
+            }
+            
+            startStudySession() {
+                document.getElementById('study-area').classList.remove('hidden');
+                this.currentWordIndex = 0;
+                this.selectNextWord();
+                this.updateProgress();
+            }
+            
+            selectNextWord() {
+                // Prioritize learning words, then reviewing, then mastered
+                const learningWords = this.words.filter(word => this.studyData[word.id].status === 'learning');
+                const reviewingWords = this.words.filter(word => this.studyData[word.id].status === 'reviewing');
+                const masteredWords = this.words.filter(word => this.studyData[word.id].status === 'mastered');
+                
+                let nextWord;
+                if (learningWords.length > 0) {
+                    nextWord = learningWords[Math.floor(Math.random() * learningWords.length)];
+                } else if (reviewingWords.length > 0) {
+                    nextWord = reviewingWords[Math.floor(Math.random() * reviewingWords.length)];
+                } else if (masteredWords.length > 0) {
+                    nextWord = masteredWords[Math.floor(Math.random() * masteredWords.length)];
+                } else {
+                    this.showMessage('No more words to study!');
+                    return;
+                }
+                
+                this.currentWordIndex = this.words.findIndex(word => word.id === nextWord.id);
+                this.displayCurrentWord();
+            }
+            
+            displayCurrentWord() {
+                const word = this.words[this.currentWordIndex];
+                document.getElementById('word-side').textContent = word.word;
+                document.getElementById('definition-side').textContent = word.definition;
+                document.getElementById('mnemonic-side').textContent = word.mnemonic || 'No mnemonic available';
+                
+                // Reset flip state
+                document.getElementById('flashcard').classList.remove('flipped');
+                this.isFlipped = false;
+            }
+            
+            flipCard() {
+                const flashcard = document.getElementById('flashcard');
+                flashcard.classList.toggle('flipped');
+                this.isFlipped = !this.isFlipped;
+            }
+            
+            markAnswer(correct) {
+                const word = this.words[this.currentWordIndex];
+                const studyData = this.studyData[word.id];
+                
+                studyData.lastStudied = new Date();
+                
+                if (correct) {
+                    studyData.correctCount++;
+                    
+                    // Progress through stages based on correct answers
+                    if (studyData.status === 'learning' && studyData.correctCount >= 2) {
+                        studyData.status = 'reviewing';
+                    } else if (studyData.status === 'reviewing' && studyData.correctCount >= 5) {
+                        studyData.status = 'mastered';
+                    }
+                } else {
+                    studyData.incorrectCount++;
+                    
+                    // Demote back to learning if struggling
+                    if (studyData.status === 'reviewing' && studyData.incorrectCount > studyData.correctCount) {
+                        studyData.status = 'learning';
+                    } else if (studyData.status === 'mastered' && studyData.incorrectCount > studyData.correctCount / 2) {
+                        studyData.status = 'reviewing';
+                    }
+                }
+                
+                this.updateProgress();
+                this.nextCard();
+            }
+            
+            nextCard() {
+                setTimeout(() => {
+                    this.selectNextWord();
+                }, 500);
+            }
+            
+            updateProgress() {
+                const learning = this.words.filter(word => this.studyData[word.id].status === 'learning').length;
+                const reviewing = this.words.filter(word => this.studyData[word.id].status === 'reviewing').length;
+                const mastered = this.words.filter(word => this.studyData[word.id].status === 'mastered').length;
+                const total = this.words.length;
+                
+                document.getElementById('learning-count').textContent = learning;
+                document.getElementById('reviewing-count').textContent = reviewing;
+                document.getElementById('mastered-count').textContent = mastered;
+                
+                document.getElementById('learning-progress').style.width = `${(learning / total) * 100}%`;
+                document.getElementById('reviewing-progress').style.width = `${(reviewing / total) * 100}%`;
+                document.getElementById('mastered-progress').style.width = `${(mastered / total) * 100}%`;
+            }
+            
+            showMessage(message) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.classList.remove('hidden');
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                }, 3000);
+            }
+        }
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new VocabularyApp();
+        });
+        
+        // Utility function for copying to clipboard
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent || element.innerText;
+            
+            // Clean up the text (remove HTML and extra spaces)
+            const cleanText = text.replace(/<br>/g, '\n').replace(/\s+/g, ' ').trim();
+            
+            navigator.clipboard.writeText(cleanText).then(() => {
+                // Show feedback
+                const copyBtn = event.target;
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#667eea';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>
